@@ -39,6 +39,7 @@ pub enum ChainSpec {
 	CennznetKauri,
 	/// The CENNZnet Rimu testnet.
 	CennznetRimu,
+        CennznetNikau,
 }
 
 /// Get a chain config from a spec setting.
@@ -47,6 +48,7 @@ impl ChainSpec {
 		Ok(match self {
 			ChainSpec::Development => chain_spec::dev::config(),
 			ChainSpec::CennznetKauri => chain_spec::kauri::config(),
+                        ChainSpec::CennznetNikau => chain_spec::nikau::config(),
 			ChainSpec::CennznetRimu => chain_spec::rimu::config(),
 		})
 	}
@@ -55,6 +57,7 @@ impl ChainSpec {
 		match s {
 			"dev" => Some(ChainSpec::Development),
 			"kauri" => Some(ChainSpec::CennznetKauri),
+                        "nikau" => Some(ChainSpec::CennznetNikau),
 			"rimu" => Some(ChainSpec::CennznetRimu),
 			_ => None,
 		}

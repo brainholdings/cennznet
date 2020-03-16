@@ -1,0 +1,77 @@
+// Copyright 2018-2019 Parity Technologies (UK) Ltd. and Centrality Investments Ltd.
+// This file is part of Substrate.
+
+// Substrate is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Substrate is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Substrate.  If not, see <http://www.gnu.org/licenses/>.
+
+//! Nikau genesis config
+
+use super::{config_genesis, get_account_id_from_seed, get_authority_keys_from_seed, ChainSpec, NetworkKeys};
+use sp_core::sr25519;
+
+fn network_keys() -> NetworkKeys {
+	let endowed_accounts = vec![
+		get_account_id_from_seed::<sr25519::Public>("Alice"),
+		get_account_id_from_seed::<sr25519::Public>("Bob"),
+		get_account_id_from_seed::<sr25519::Public>("Charlie"),
+		get_account_id_from_seed::<sr25519::Public>("Dave"),
+		get_account_id_from_seed::<sr25519::Public>("Eve"),
+		get_account_id_from_seed::<sr25519::Public>("Ferdie"),
+		get_account_id_from_seed::<sr25519::Public>("Centrality"),
+		get_account_id_from_seed::<sr25519::Public>("Nikau"),
+		get_account_id_from_seed::<sr25519::Public>("Rimu"),
+		get_account_id_from_seed::<sr25519::Public>("cennznet-js-test"),
+		get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+		get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+		get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
+		get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
+		get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
+		get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+		get_account_id_from_seed::<sr25519::Public>("Centrality//stash"),
+		get_account_id_from_seed::<sr25519::Public>("Nikau//stash"),
+		get_account_id_from_seed::<sr25519::Public>("Rimu//stash"),
+		get_account_id_from_seed::<sr25519::Public>("cennznet-js-test//stash"),
+	];
+	let initial_authorities = vec![
+		get_authority_keys_from_seed("Alice"),
+		get_authority_keys_from_seed("Bob"),
+		get_authority_keys_from_seed("Charlie"),
+		get_authority_keys_from_seed("Dave"),
+		get_authority_keys_from_seed("Eve"),
+	];
+	let root_key = get_account_id_from_seed::<sr25519::Public>("Nikau");
+
+	NetworkKeys {
+		endowed_accounts,
+		initial_authorities,
+		root_key,
+	}
+}
+
+pub fn config() -> ChainSpec {
+	ChainSpec::from_genesis(
+		"Nikau CENNZnet",
+		"Nikau",
+		|| config_genesis(network_keys(), false),
+		// Boot nodes (better to set via cmd line for ad-hoc network)
+		vec![],
+		// Telemetry endpoints (better to set via cmd line ad-hoc network)
+		None,
+		// The libp2p network protocol ID
+		// it is not _necessarily_ tied to the client or runtime version
+		Some("nikau#1.0.0-rc2"),
+		// properties
+		None,
+		Default::default(),
+	)
+}

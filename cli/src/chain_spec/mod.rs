@@ -42,6 +42,7 @@ pub use cennznet_runtime::GenesisConfig;
 
 pub mod dev;
 pub mod kauri;
+pub mod nikau;
 pub mod rimu;
 
 type AccountPublic = <Signature as Verify>::Signer;
