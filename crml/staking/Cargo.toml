@@ -28,6 +28,9 @@ pallet-generic-asset = { git = "https://github.com/plugblockchain/plug-blockchai
 pallet-timestamp = { git = "https://github.com/plugblockchain/plug-blockchain", branch = "1.0.0-rc3" }
 crml-staking-reward-curve = { path = "../staking/reward-curve" }
 substrate-test-utils = { git = "https://github.com/plugblockchain/plug-blockchain", branch = "1.0.0-rc3" }
+crml-transaction-payment = { path = "../transaction-payment", default-features = false }
+crml-cennzx-spot = { path = "../cennzx-spot", default-features = false }
+cennznet-runtime = { path = "../../runtime" }
 
 [features]
 migrate = []

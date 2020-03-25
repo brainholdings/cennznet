@@ -1122,7 +1122,10 @@ dependencies = [
 name = "crml-staking"
 version = "1.0.0"
 dependencies = [
+ "cennznet-runtime",
+ "crml-cennzx-spot",
  "crml-staking-reward-curve",
+ "crml-transaction-payment",
  "frame-support",
  "frame-system",
  "pallet-authorship",

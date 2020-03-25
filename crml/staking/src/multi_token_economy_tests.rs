@@ -17,20 +17,23 @@
 // Sadly we need to re-mock everything here just to alter the `RewardCurrency`,
 // apart from that this file is simplified copy of `mock.rs`
 
-use frame_support::{impl_outer_origin, parameter_types};
+use cennznet_runtime::impls::{CurrencyToVoteHandler, SplitToAllValidators};
+use cennznet_runtime::{NegativeImbalance, TransactionBaseFee, TransactionByteFee};
+use crml_cennzx_spot::{Call, ExchangeAddressGenerator};
+use frame_support::{impl_outer_origin, parameter_types, traits::SplitTwoWays};
+use pallet_generic_asset::{SpendingAssetCurrency, StakingAssetCurrency};
+use sp_core::u32_trait::{_0, _1};
 use sp_core::H256;
 use sp_runtime::{
 	curve::PiecewiseLinear,
 	testing::{Header, UintAuthorityId},
-	traits::{IdentityLookup, OnInitialize},
+	traits::{ConvertInto, IdentityLookup, OnInitialize},
 	Perbill,
 };
 use sp_staking::SessionIndex;
 use std::collections::HashSet;
 
-use crate::mock::{
-	Author11, CurrencyToVoteHandler, ExistentialDeposit, SlashDeferDuration, TestSessionHandler, SESSION,
-};
+use crate::mock::{Author11, SlashDeferDuration, TestSessionHandler, SESSION};
 use crate::{inflation, EraIndex, GenesisConfig, Module, RewardDestination, StakerStatus, StakingLedger, Trait};
 
 const REWARD_ASSET_ID: u32 = 101;
@@ -39,7 +42,8 @@ const STAKING_ASSET_ID: u32 = 100;
 /// The AccountId alias in this test module.
 pub type AccountId = u64;
 pub type BlockNumber = u64;
-pub type Balance = u64;
+pub type Balance = u128;
+pub type AssetId = u32;
 
 use frame_system as system;
 impl_outer_origin! {
@@ -79,19 +83,9 @@ parameter_types! {
 	pub const TransferFee: Balance = 0;
 	pub const CreationFee: Balance = 0;
 }
-impl pallet_balances::Trait for Test {
-	type Balance = Balance;
-	type OnReapAccount = System;
-	type OnNewAccount = ();
-	type Event = ();
-	type TransferPayment = ();
-	type DustRemoval = ();
-	type ExistentialDeposit = ExistentialDeposit;
-	type CreationFee = CreationFee;
-}
 impl pallet_generic_asset::Trait for Test {
-	type Balance = u64;
-	type AssetId = u32;
+	type Balance = Balance;
+	type AssetId = AssetId;
 	type Event = ();
 }
 parameter_types! {
@@ -121,6 +115,37 @@ impl pallet_authorship::Trait for Test {
 	type FilterUncle = ();
 	type EventHandler = Module<Test>;
 }
+
+pub type DealWithFees = SplitTwoWays<
+	Balance,
+	NegativeImbalance,
+	_0,
+	(),
+	_1,
+	SplitToAllValidators, // 100% goes to elected validators
+>;
+
+impl crml_transaction_payment::Trait for Test {
+	type Balance = Balance;
+	type AssetId = AssetId;
+	type Currency = SpendingAssetCurrency<Self>;
+	type OnTransactionPayment = DealWithFees;
+
+	type TransactionBaseFee = TransactionBaseFee;
+	type TransactionByteFee = TransactionByteFee;
+	type WeightToFee = ConvertInto;
+	type FeeMultiplierUpdate = ();
+	type BuyFeeAsset = crml_cennzx_spot::Module<Self>;
+}
+
+impl crml_cennzx_spot::Trait for Test {
+	type Call = Call<Self>;
+	type Event = ();
+	type ExchangeAddressGenerator = ExchangeAddressGenerator<Self>;
+	type BalanceToUnsignedInt = Balance;
+	type UnsignedIntToBalance = Balance;
+}
+
 parameter_types! {
 	pub const MinimumPeriod: u64 = 5;
 }
@@ -145,8 +170,8 @@ parameter_types! {
 	pub const RewardCurve: &'static PiecewiseLinear<'static> = &I_NPOS;
 }
 impl Trait for Test {
-	type Currency = pallet_generic_asset::StakingAssetCurrency<Self>;
-	type RewardCurrency = pallet_generic_asset::SpendingAssetCurrency<Self>;
+	type Currency = StakingAssetCurrency<Self>;
+	type RewardCurrency = SpendingAssetCurrency<Self>;
 	type Time = pallet_timestamp::Module<Self>;
 	type CurrencyToVote = CurrencyToVoteHandler;
 	type RewardRemainder = ();
@@ -248,7 +273,7 @@ pub fn start_era(era_index: EraIndex) {
 	assert_eq!(Staking::current_era(), era_index);
 }
 
-pub fn current_total_payout_for_duration(duration: u64) -> u64 {
+pub fn current_total_payout_for_duration(duration: u64) -> Balance {
 	inflation::compute_total_payout(
 		<Test as Trait>::RewardCurve::get(),
 		<Module<Test>>::slot_stake() * 2,
