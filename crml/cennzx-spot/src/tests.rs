@@ -20,7 +20,7 @@ use crate::{
 	impls::{ExchangeAddressFor, ExchangeAddressGenerator},
 	mock::{self, CORE_ASSET_ID, TRADE_ASSET_A_ID, TRADE_ASSET_B_ID},
 	types::{FeeRate, LowPrecisionUnsigned, PerMilli, PerMillion},
-	Call, CoreAssetId, DefaultFeeRate, Error, GenesisConfig, Module, Trait,
+	Call, CoreAssetId, Error, GenesisConfig, Module, Trait,
 };
 use core::convert::TryFrom;
 use frame_support::{additional_traits::DummyDispatchVerifier, impl_outer_origin, traits::Currency, StorageValue};
@@ -255,7 +255,7 @@ fn investor_can_add_liquidity() {
 		));
 
 		assert_exchange_balance_eq!(CoreAssetCurrency => 20, TradeAssetCurrencyA => 31);
-		assert_eq!(CennzXSpot::get_liquidity(&DEFAULT_EXCHANGE_KEY, &investor), 20);
+		assert_eq!(CennzXSpot::liquidity_balance(&DEFAULT_EXCHANGE_KEY, &investor), 20);
 	});
 }
 
@@ -265,12 +265,12 @@ fn get_output_price_zero_cases() {
 		with_exchange!(CoreAssetCurrency => 1000, TradeAssetCurrencyA => 1000);
 
 		assert_err!(
-			CennzXSpot::get_output_price(100, 0, 10, DefaultFeeRate::get()),
+			CennzXSpot::get_output_price(100, 0, 10),
 			Error::<Test>::EmptyExchangePool
 		);
 
 		assert_err!(
-			CennzXSpot::get_output_price(100, 10, 0, DefaultFeeRate::get()),
+			CennzXSpot::get_output_price(100, 10, 0),
 			Error::<Test>::EmptyExchangePool
 		);
 	});
@@ -281,18 +281,10 @@ fn get_output_price_zero_cases() {
 #[test]
 fn get_output_price_for_valid_data() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(
-			CennzXSpot::get_output_price(123, 1000, 1000, DefaultFeeRate::get()),
-			141
-		);
+		assert_ok!(CennzXSpot::get_output_price(123, 1000, 1000), 141);
 
 		assert_ok!(
-			CennzXSpot::get_output_price(
-				100_000_000_000_000,
-				120_627_710_511_649_660,
-				20_627_710_511_649_660,
-				DefaultFeeRate::get()
-			),
+			CennzXSpot::get_output_price(100_000_000_000_000, 120_627_710_511_649_660, 20_627_710_511_649_660,),
 			589396433540516
 		);
 	});
@@ -308,7 +300,6 @@ fn get_output_price_for_max_reserve_balance() {
 				LowPrecisionUnsigned::max_value() / 2,
 				LowPrecisionUnsigned::max_value() / 2,
 				LowPrecisionUnsigned::max_value(),
-				DefaultFeeRate::get()
 			),
 			170651607010850639426882365627031758044
 		);
@@ -326,7 +317,6 @@ fn get_output_price_should_fail_with_max_reserve_and_max_amount() {
 				LowPrecisionUnsigned::max_value() - 100,
 				LowPrecisionUnsigned::max_value(),
 				LowPrecisionUnsigned::max_value(),
-				DefaultFeeRate::get()
 			),
 			Error::<Test>::Overflow
 		);
@@ -341,12 +331,12 @@ fn get_output_price_max_withdrawal() {
 		with_exchange!(CoreAssetCurrency => 1000, TradeAssetCurrencyA => 1000);
 
 		assert_err!(
-			CennzXSpot::get_output_price(1000, 1000, 1000, DefaultFeeRate::get()),
+			CennzXSpot::get_output_price(1000, 1000, 1000),
 			Error::<Test>::InsufficientAssetReserve
 		);
 
 		assert_err!(
-			CennzXSpot::get_output_price(1_000_000, 1000, 1000, DefaultFeeRate::get()),
+			CennzXSpot::get_output_price(1_000_000, 1000, 1000),
 			Error::<Test>::InsufficientAssetReserve
 		);
 	});
@@ -358,20 +348,12 @@ fn asset_swap_output_price() {
 		with_exchange!(CoreAssetCurrency => 1000, TradeAssetCurrencyA => 1000);
 
 		assert_ok!(
-			CennzXSpot::get_asset_to_core_output_price(
-				&resolve_asset_id!(TradeAssetCurrencyA),
-				123,
-				DefaultFeeRate::get()
-			),
+			CennzXSpot::get_asset_to_core_buy_price(&resolve_asset_id!(TradeAssetCurrencyA), 123),
 			141
 		);
 
 		assert_ok!(
-			CennzXSpot::get_core_to_asset_output_price(
-				&resolve_asset_id!(TradeAssetCurrencyA),
-				123,
-				DefaultFeeRate::get()
-			),
+			CennzXSpot::get_core_to_asset_buy_price(&resolve_asset_id!(TradeAssetCurrencyA), 123),
 			141
 		);
 	});
@@ -381,19 +363,11 @@ fn asset_swap_output_price() {
 fn asset_swap_output_zero_buy_amount() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_err!(
-			CennzXSpot::get_core_to_asset_output_price(
-				&resolve_asset_id!(TradeAssetCurrencyA),
-				0,
-				DefaultFeeRate::get()
-			),
+			CennzXSpot::get_core_to_asset_buy_price(&resolve_asset_id!(TradeAssetCurrencyA), 0),
 			Error::<Test>::BuyAmountNotPositive
 		);
 		assert_err!(
-			CennzXSpot::get_asset_to_core_output_price(
-				&resolve_asset_id!(TradeAssetCurrencyA),
-				0,
-				DefaultFeeRate::get()
-			),
+			CennzXSpot::get_asset_to_core_buy_price(&resolve_asset_id!(TradeAssetCurrencyA), 0),
 			Error::<Test>::BuyAmountNotPositive
 		);
 	});
@@ -405,19 +379,17 @@ fn asset_swap_output_insufficient_reserve() {
 		with_exchange!(CoreAssetCurrency => 1000, TradeAssetCurrencyA => 1000);
 
 		assert_err!(
-			CennzXSpot::get_asset_to_core_output_price(
+			CennzXSpot::get_asset_to_core_buy_price(
 				&resolve_asset_id!(TradeAssetCurrencyA),
 				1001, // amount_bought
-				DefaultFeeRate::get()
 			),
 			Error::<Test>::InsufficientAssetReserve
 		);
 
 		assert_err!(
-			CennzXSpot::get_core_to_asset_output_price(
+			CennzXSpot::get_core_to_asset_buy_price(
 				&resolve_asset_id!(TradeAssetCurrencyA),
 				1001, // amount_bought
-				DefaultFeeRate::get()
 			),
 			Error::<Test>::InsufficientAssetReserve
 		);
@@ -450,15 +422,17 @@ fn make_asset_to_core_swap_output() {
 	ExtBuilder::default().build().execute_with(|| {
 		with_exchange!(CoreAssetCurrency => 10, TradeAssetCurrencyA => 1000);
 		let trader = with_account!(CoreAssetCurrency => 2200, TradeAssetCurrencyA => 2200);
+		let new_fee_rate = FeeRate::<PerMillion>::try_from(FeeRate::<PerMilli>::from(3u128)).unwrap();
+		assert_ok!(CennzXSpot::set_fee_rate(Origin::ROOT, new_fee_rate), ());
 
 		assert_ok!(
-			CennzXSpot::make_asset_to_core_output(
+			CennzXSpot::execute_buy(
 				&trader, // buyer
 				&trader, // recipient
 				&resolve_asset_id!(TradeAssetCurrencyA),
-				5,                                                                          // buy_amount: T::Balance,
-				1400,                                                                       // max_sale: T::Balance,
-				FeeRate::<PerMillion>::try_from(FeeRate::<PerMilli>::from(3u128)).unwrap(), // fee_rate
+				&resolve_asset_id!(CoreAssetCurrency),
+				5,    // buy_amount: T::Balance,
+				1400, // max_sale: T::Balance,
 			),
 			1004
 		);
@@ -517,7 +491,7 @@ fn asset_swap_output_insufficient_balance() {
 				51,  // buy_amount
 				500, // max_sale,
 			),
-			Error::<Test>::InsufficientBuyerTradeAssetBalance
+			Error::<Test>::InsufficientBalance
 		);
 		// core to asset swap output
 		assert_err!(
@@ -529,7 +503,7 @@ fn asset_swap_output_insufficient_balance() {
 				101, // buy_amount
 				500, // max_sale,
 			),
-			Error::<Test>::InsufficientBuyerCoreAssetBalance
+			Error::<Test>::InsufficientBalance
 		);
 	});
 }
@@ -550,7 +524,7 @@ fn asset_swap_output_exceed_max_sale() {
 				50, // buy_amount
 				0,  // max_sale,
 			),
-			Error::<Test>::AssetToCorePriceAboveMaxLimit
+			Error::<Test>::PriceAboveMaxLimit
 		);
 
 		// core to asset swap output
@@ -563,7 +537,7 @@ fn asset_swap_output_exceed_max_sale() {
 				50, // buy_amount
 				0,  // max_sale,
 			),
-			Error::<Test>::CoreToAssetPriceAboveMaxLimit
+			Error::<Test>::PriceAboveMaxLimit
 		);
 	});
 }
@@ -596,15 +570,17 @@ fn make_core_to_asset_output() {
 		with_exchange!(CoreAssetCurrency => 1000, TradeAssetCurrencyA => 10);
 		let buyer = with_account!(CoreAssetCurrency => 2200, TradeAssetCurrencyA => 2200);
 		let recipient = with_account!("bob", CoreAssetCurrency => 0, TradeAssetCurrencyA => 0);
+		let new_fee_rate = FeeRate::<PerMillion>::try_from(FeeRate::<PerMilli>::from(3u128)).unwrap();
+		assert_ok!(CennzXSpot::set_fee_rate(Origin::ROOT, new_fee_rate), ());
 
 		assert_ok!(
-			CennzXSpot::make_core_to_asset_output(
+			CennzXSpot::execute_buy(
 				&buyer,
 				&recipient,
+				&resolve_asset_id!(CoreAssetCurrency),
 				&resolve_asset_id!(TradeAssetCurrencyA),
-				5,                                                                          // buy_amount: T::Balance,
-				1400,                                                                       // max_sale: T::Balance,
-				FeeRate::<PerMillion>::try_from(FeeRate::<PerMilli>::from(3u128)).unwrap(), // fee_rate
+				5,    // buy_amount: T::Balance,
+				1400, // max_sale: T::Balance,
 			),
 			1004
 		);
@@ -783,21 +759,16 @@ fn core_to_asset_transfer_output() {
 #[test]
 fn get_input_price_for_valid_data() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(CennzXSpot::get_input_price(123, 1000, 1000, DefaultFeeRate::get()), 108);
+		assert_ok!(CennzXSpot::get_input_price(123, 1000, 1000), 108);
 
 		// No f32/f64 types, so we use large values to test precision
 		assert_ok!(
-			CennzXSpot::get_input_price(123_000_000, 1_000_000_000, 1_000_000_000, DefaultFeeRate::get()),
+			CennzXSpot::get_input_price(123_000_000, 1_000_000_000, 1_000_000_000),
 			109236233
 		);
 
 		assert_ok!(
-			CennzXSpot::get_input_price(
-				100_000_000_000_000,
-				120_627_710_511_649_660,
-				4_999_727_416_279_531_363,
-				DefaultFeeRate::get()
-			),
+			CennzXSpot::get_input_price(100_000_000_000_000, 120_627_710_511_649_660, 4_999_727_416_279_531_363),
 			4128948876492407
 		);
 
@@ -805,8 +776,7 @@ fn get_input_price_for_valid_data() {
 			CennzXSpot::get_input_price(
 				100_000_000_000_000,
 				120_627_710_511_649_660,
-				LowPrecisionUnsigned::max_value(),
-				DefaultFeeRate::get()
+				LowPrecisionUnsigned::max_value()
 			),
 			281017019450612581324176880746747822
 		);
@@ -823,8 +793,7 @@ fn get_input_price_for_max_reserve_balance() {
 			CennzXSpot::get_input_price(
 				LowPrecisionUnsigned::max_value() / 2,
 				LowPrecisionUnsigned::max_value() / 2,
-				LowPrecisionUnsigned::max_value(),
-				DefaultFeeRate::get()
+				LowPrecisionUnsigned::max_value()
 			),
 			169886353929574869427545984738775941814
 		);
@@ -837,20 +806,12 @@ fn asset_swap_input_price() {
 		with_exchange!(CoreAssetCurrency => 1000, TradeAssetCurrencyA => 1000);
 
 		assert_ok!(
-			CennzXSpot::get_asset_to_core_input_price(
-				&resolve_asset_id!(TradeAssetCurrencyA),
-				123,
-				DefaultFeeRate::get()
-			),
+			CennzXSpot::get_asset_to_core_sell_price(&resolve_asset_id!(TradeAssetCurrencyA), 123),
 			108
 		);
 
 		assert_ok!(
-			CennzXSpot::get_core_to_asset_input_price(
-				&resolve_asset_id!(TradeAssetCurrencyA),
-				123,
-				DefaultFeeRate::get()
-			),
+			CennzXSpot::get_core_to_asset_sell_price(&resolve_asset_id!(TradeAssetCurrencyA), 123),
 			108
 		);
 	});
@@ -860,19 +821,11 @@ fn asset_swap_input_price() {
 fn asset_swap_input_zero_sell_amount() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_err!(
-			CennzXSpot::get_asset_to_core_input_price(
-				&resolve_asset_id!(TradeAssetCurrencyA),
-				0,
-				DefaultFeeRate::get()
-			),
+			CennzXSpot::get_asset_to_core_sell_price(&resolve_asset_id!(TradeAssetCurrencyA), 0),
 			Error::<Test>::AssetToCoreSellAmountNotAboveZero
 		);
 		assert_err!(
-			CennzXSpot::get_core_to_asset_input_price(
-				&resolve_asset_id!(TradeAssetCurrencyA),
-				0,
-				DefaultFeeRate::get()
-			),
+			CennzXSpot::get_core_to_asset_sell_price(&resolve_asset_id!(TradeAssetCurrencyA), 0),
 			Error::<Test>::CoreToAssetSellAmountNotAboveZero
 		);
 	});
@@ -885,27 +838,27 @@ fn asset_swap_input_insufficient_balance() {
 
 		let trader = with_account!(CoreAssetCurrency => 1000, TradeAssetCurrencyA => 1000);
 		assert_err!(
-			CennzXSpot::make_asset_to_core_input(
+			CennzXSpot::execute_sell(
 				&trader, // seller
 				&trader, // recipient
 				&resolve_asset_id!(TradeAssetCurrencyA),
+				&resolve_asset_id!(CoreAssetCurrency),
 				10001, // sell_amount
-				100,   // min buy limit
-				DefaultFeeRate::get()
+				100    // min buy limit
 			),
-			Error::<Test>::InsufficientSellerTradeAssetBalance
+			Error::<Test>::InsufficientBalance
 		);
 
 		assert_err!(
-			CennzXSpot::make_core_to_asset_input(
+			CennzXSpot::execute_sell(
 				&trader, // seller
 				&trader, // recipient
+				&resolve_asset_id!(CoreAssetCurrency),
 				&resolve_asset_id!(TradeAssetCurrencyA),
 				10001, // sell_amount
-				100,   // min buy limit
-				DefaultFeeRate::get()
+				100    // min buy limit
 			),
-			Error::<Test>::InsufficientSellerCoreAssetBalance
+			Error::<Test>::InsufficientBalance
 		);
 	});
 }
@@ -960,13 +913,13 @@ fn make_asset_to_core_input() {
 		let trader = with_account!(CoreAssetCurrency => 2200, TradeAssetCurrencyA => 2200);
 
 		assert_ok!(
-			CennzXSpot::make_asset_to_core_input(
+			CennzXSpot::execute_sell(
 				&trader, // buyer
 				&trader, // recipient
 				&resolve_asset_id!(TradeAssetCurrencyA),
-				90,                    // sell_amount: T::Balance,
-				50,                    // min buy: T::Balance,
-				DefaultFeeRate::get()  // fee_rate
+				&resolve_asset_id!(CoreAssetCurrency),
+				90, // sell_amount: T::Balance,
+				50, // min buy: T::Balance,
 			),
 			81
 		);
@@ -984,13 +937,13 @@ fn make_core_to_asset_input() {
 		let trader = with_account!(CoreAssetCurrency => 2200, TradeAssetCurrencyA => 2200);
 
 		assert_ok!(
-			CennzXSpot::make_core_to_asset_input(
+			CennzXSpot::execute_sell(
 				&trader, // buyer
 				&trader, // recipient
+				&resolve_asset_id!(CoreAssetCurrency),
 				&resolve_asset_id!(TradeAssetCurrencyA),
-				90,                    // sell_amount: T::Balance,
-				50,                    // min buy: T::Balance,
-				DefaultFeeRate::get()  // fee_rate
+				90, // sell_amount: T::Balance,
+				50, // min buy: T::Balance,
 			),
 			81
 		);
@@ -1128,8 +1081,8 @@ fn asset_to_asset_swap_output() {
 			300,                                    // maximum asset A to sell
 		));
 
-		assert_exchange_balance_eq!(CoreAssetCurrency => 823, TradeAssetCurrencyA => 1216);
-		assert_exchange_balance_eq!(CoreAssetCurrency => 1177, TradeAssetCurrencyB => 850);
+		assert_exchange_balance_eq!(CoreAssetCurrency => 824, TradeAssetCurrencyA => 1216);
+		assert_exchange_balance_eq!(CoreAssetCurrency => 1176, TradeAssetCurrencyB => 850);
 		assert_balance_eq!(trader, TradeAssetCurrencyA => 1984);
 		assert_balance_eq!(trader, TradeAssetCurrencyB => 150);
 		assert_balance_eq!(trader, CoreAssetCurrency => 2200);
@@ -1173,7 +1126,7 @@ fn asset_to_asset_swap_output_insufficient_balance() {
 				51,                                     // buy_amount
 				400,                                    // maximum asset A to sell
 			),
-			Error::<Test>::InsufficientBuyerTradeAssetBalance
+			Error::<Test>::InsufficientBalance
 		);
 	});
 }
@@ -1194,7 +1147,7 @@ fn asset_to_asset_swap_output_exceed_max_sale() {
 				156,                                    // buy_amount
 				100,                                    // maximum asset A to sell
 			),
-			Error::<Test>::AssetToAssetPriceAboveMaxLimit
+			Error::<Test>::PriceAboveMaxLimit
 		);
 	});
 }
@@ -1216,8 +1169,8 @@ fn asset_to_asset_transfer_output() {
 			300,                     // maximum asset A to sell
 		));
 
-		assert_exchange_balance_eq!(CoreAssetCurrency => 823, TradeAssetCurrencyA => 1216);
-		assert_exchange_balance_eq!(CoreAssetCurrency => 1177, TradeAssetCurrencyB => 850);
+		assert_exchange_balance_eq!(CoreAssetCurrency => 824, TradeAssetCurrencyA => 1216);
+		assert_exchange_balance_eq!(CoreAssetCurrency => 1176, TradeAssetCurrencyB => 850);
 		assert_balance_eq!(trader, TradeAssetCurrencyA => 1984);
 		assert_balance_eq!(recipient, TradeAssetCurrencyB => 250);
 		assert_balance_eq!(trader, CoreAssetCurrency => 2200);
@@ -1285,7 +1238,7 @@ fn asset_to_asset_swap_input_insufficient_balance() {
 				51,                                     // sell_amount
 				100,                                    // min buy limit for asset B
 			),
-			Error::<Test>::InsufficientSellerTradeAssetBalance
+			Error::<Test>::InsufficientBalance
 		);
 	});
 }
@@ -1306,7 +1259,7 @@ fn asset_to_asset_swap_input_less_than_min_sale() {
 				156,                                    // sell_amount
 				200,                                    // min buy limit for asset B
 			),
-			Error::<Test>::InsufficientSellAssetForRequiredMinimumBuyAsset
+			Error::<Test>::SaleValueBelowRequiredMinimum
 		);
 	});
 }
