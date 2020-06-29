@@ -54,11 +54,12 @@ macro_rules! new_full_start {
 			cennznet_executor::Executor,
 		>($config)?
 		.with_select_chain(|_config, backend| Ok(sc_client::LongestChain::new(backend.clone())))?
-		.with_transaction_pool(|config, client, _fetcher| {
-			let pool_api = sc_transaction_pool::FullChainApi::new(client.clone());
+		.with_transaction_pool(|builder| {
+			let pool_api = sc_transaction_pool::FullChainApi::new(builder.client().clone());
 			Ok(sc_transaction_pool::BasicPool::new(
-				config,
+				builder.config().transaction_pool.clone(),
 				std::sync::Arc::new(pool_api),
+				builder.prometheus_registry(),
 			))
 		})?
 		.with_import_queue(|_config, client, mut select_chain, _transaction_pool| {
@@ -286,12 +287,15 @@ pub fn new_light(config: Configuration) -> Result<impl AbstractService, ServiceE
 
 	let service = ServiceBuilder::new_light::<Block, RuntimeApi, cennznet_executor::Executor>(config)?
 		.with_select_chain(|_config, backend| Ok(LongestChain::new(backend.clone())))?
-		.with_transaction_pool(|config, client, fetcher| {
-			let fetcher = fetcher.ok_or_else(|| "Trying to start light transaction pool without active fetcher")?;
-			let pool_api = sc_transaction_pool::LightChainApi::new(client.clone(), fetcher.clone());
+		.with_transaction_pool(|builder| {
+			let fetcher = builder
+				.fetcher()
+				.ok_or_else(|| "Trying to start light transaction pool without active fetcher")?;
+			let pool_api = sc_transaction_pool::LightChainApi::new(builder.client().clone(), fetcher.clone());
 			let pool = sc_transaction_pool::BasicPool::with_revalidation_type(
-				config,
+				builder.config().transaction_pool.clone(),
 				Arc::new(pool_api),
+				builder.prometheus_registry(),
 				sc_transaction_pool::RevalidationType::Light,
 			);
 			Ok(pool)
@@ -356,7 +360,6 @@ pub fn new_light(config: Configuration) -> Result<impl AbstractService, ServiceE
 #[cfg(test)]
 mod tests {
 
-	#[cfg(feature = "rhd")]
 	fn test_sync() {
 		use sp_core::ed25519::Pair;
 
@@ -378,9 +381,9 @@ mod tests {
 
 			futures::executor::block_on(service.transaction_pool().maintain(ChainEvent::NewBlock {
 				is_new_best: true,
-				id: block_id.clone(),
-				retracted: vec![],
-				header: parent_header,
+				hash: parent_header.hash(),
+				tree_route: None,
+				header: parent_header.clone(),
 			}));
 
 			let consensus_net = ConsensusNetwork::new(service.network(), service.client().clone());
