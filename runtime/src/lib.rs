@@ -182,6 +182,10 @@ impl crml_sylo::inbox::Trait for Runtime {}
 impl crml_sylo::vault::Trait for Runtime {}
 impl crml_sylo::payment::Trait for Runtime {}
 
+impl crml_ga_reconfigure::Trait for Runtime {
+	type Event = Event;
+}
+
 parameter_types! {
 	pub const EpochDuration: u64 = EPOCH_DURATION_IN_SLOTS;
 	pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
@@ -579,6 +583,7 @@ construct_runtime!(
 		SyloVault: sylo_vault::{Module, Call, Storage},
 		SyloPayment: sylo_payment::{Module, Call, Storage},
 		CennzxSpot: crml_cennzx_spot::{Module, Call, Storage, Config<T>, Event<T>},
+		Reconfigure: crml_ga_reconfigure::{Module, Call, Event<T>},
 	}
 );
 
