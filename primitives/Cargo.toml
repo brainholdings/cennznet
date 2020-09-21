@@ -16,7 +16,6 @@ sp-std = { git = "https://github.com/plugblockchain/plug-blockchain", default-fe
 pretty_assertions = "0.6.1"
 sp-serializer = { git = "https://github.com/plugblockchain/plug-blockchain", branch = "1.0.0-rc4.2" }
 
-
 [features]
 default = ["std"]
 std = [

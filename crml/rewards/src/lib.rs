@@ -22,6 +22,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use cennznet_primitives::{traits::ValidatorRewardPayment, types::Exposure};
+use frame_support::traits::OnUnbalanced;
 use frame_support::{
 	decl_event, decl_module, decl_storage,
 	traits::{Currency, Imbalance},
@@ -33,16 +34,16 @@ use sp_runtime::{
 	traits::{AccountIdConversion, One, Saturating, Zero},
 	ModuleId, Perbill,
 };
-use sp_std::{
-	collections::vec_deque::VecDeque,
-	vec::Vec,
-};
+use sp_std::{collections::vec_deque::VecDeque, prelude::*};
 
 /// A balance amount in the reward currency
-pub type BalanceOf<T> = <<T as Trait>::CurrencyToReward as Currency<<T as system::Trait>::AccountId>>::Balance;
+type BalanceOf<T> = <<T as Trait>::CurrencyToReward as Currency<<T as system::Trait>::AccountId>>::Balance;
 /// A pending increase to total issuance of the reward currency
 type PositiveImbalanceOf<T> =
 	<<T as Trait>::CurrencyToReward as Currency<<T as frame_system::Trait>::AccountId>>::PositiveImbalance;
+/// A pending decrease to total issuance of the reward currency
+type NegativeImbalanceOf<T> =
+	<<T as Trait>::CurrencyToReward as Currency<<T as frame_system::Trait>::AccountId>>::NegativeImbalance;
 
 pub trait Trait: frame_system::Trait {
 	/// The system event type
@@ -215,6 +216,14 @@ impl<T: Trait> Module<T> {
 			(validator_contribution_ratio * nominators_cut) + validator_cut,
 		));
 		(*payouts).to_vec()
+	}
+}
+
+/// This handles the `NegativeImbalance` from burning transaction fees.
+/// The amount is noted by the rewards module for later distribution.
+impl<T: Trait> OnUnbalanced<NegativeImbalanceOf<T>> for Module<T> {
+	fn on_nonzero_unbalanced(imbalance: NegativeImbalanceOf<T>) {
+		Self::note_transaction_fees(imbalance.peek());
 	}
 }
 

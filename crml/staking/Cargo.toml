@@ -19,6 +19,7 @@ frame-support = { default-features = false, git = "https://github.com/plugblockc
 frame-system = { default-features = false, git = "https://github.com/plugblockchain/plug-blockchain", branch = "1.0.0-rc4.2" }
 pallet-session = { default-features = false, features = ["historical"], git = "https://github.com/plugblockchain/plug-blockchain", branch = "1.0.0-rc4.2" }
 pallet-authorship = { default-features = false, git = "https://github.com/plugblockchain/plug-blockchain", branch = "1.0.0-rc4.2" }
+cennznet-primitives = { default-features = false, path = "../../primitives" }
 
 [dev-dependencies]
 sp-core = { git = "https://github.com/plugblockchain/plug-blockchain", branch = "1.0.0-rc4.2" }

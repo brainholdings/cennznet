@@ -253,9 +253,7 @@ use cennznet_primitives::{
 use codec::{Decode, Encode, HasCompact};
 use frame_support::{
 	debug, decl_error, decl_event, decl_module, decl_storage, ensure,
-	traits::{
-		Currency, Get, Imbalance, LockIdentifier, LockableCurrency, OnReapAccount, OnUnbalanced, Time, WithdrawReasons,
-	},
+	traits::{Currency, Get, LockIdentifier, LockableCurrency, OnReapAccount, OnUnbalanced, Time, WithdrawReasons},
 	weights::SimpleDispatchInfo,
 	IterableStorageMap,
 };
@@ -263,7 +261,7 @@ use frame_system::{self as system, ensure_root, ensure_signed};
 use pallet_session::historical::SessionManager;
 use sp_phragmen::ExtendedBalance;
 use sp_runtime::{
-	traits::{AtLeast32Bit, Bounded, CheckedSub, Convert, SaturatedConversion, Saturating, Zero},
+	traits::{AtLeast32Bit, Bounded, CheckedSub, Convert, Saturating, Zero},
 	Perbill, RuntimeDebug,
 };
 #[cfg(feature = "std")]
