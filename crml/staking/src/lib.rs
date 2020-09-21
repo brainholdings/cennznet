@@ -167,33 +167,16 @@
 //! of the validator's own stake and the votes it received. See [`Exposure`](./struct.Exposure.html)
 //! for more details.
 //!
-//! ### Reward Calculation (moved to crml/rewards/)
-//!
-//! Validators and nominators are rewarded at the end of each era. The total reward of an era is
-//! calculated using the era duration and the staking rate (the total amount of tokens staked by
-//! nominators and validators, divided by the total token supply). It aims to incentivise toward a
-//! defined staking rate. The full specification can be found
-//! [here](https://research.web3.foundation/en/latest/polkadot/Token%20Economics.html#inflation-model).
-//!
-//! The validator and its nominator split their reward as following:
-//!
-//! The validator can declare an amount, named
-//! [`commission`](./struct.ValidatorPrefs.html#structfield.commission), that does not
-//! get shared with the nominators at each reward payout through its
-//! [`ValidatorPrefs`](./struct.ValidatorPrefs.html). This value gets deducted from the total reward
-//! that is paid to the validator and its nominators. The remaining portion is split among the
-//! validator and all of the nominators that nominated the validator, proportional to the value
-//! staked behind this validator (_i.e._ dividing the
-//! [`own`](./struct.Exposure.html#structfield.own) or
-//! [`others`](./struct.Exposure.html#structfield.others) by
-//! [`total`](./struct.Exposure.html#structfield.total) in [`Exposure`](./struct.Exposure.html)).
+//! ### Reward Calculation
+//! See the [`Rewards`](../crml-rewards/index.html) module for details.
 //!
 //! All entities who receive a reward have the option to choose their reward destination
 //! through the [`Payee`](./struct.Payee.html) storage item (see
 //! [`set_payee`](enum.Call.html#variant.set_payee)), to be one of the following:
 //!
-//! - Controller account, (obviously) not increasing the staked value.
 //! - Stash account, not increasing the staked value.
+//! - Controller account, (obviously) not increasing the staked value.
+//! - Any account they choose (encompasses the previous options but added later)
 //!
 //! ### Additional Fund Management Operations
 //!
@@ -229,7 +212,8 @@
 //!
 //! ## Related Modules
 //!
-//! - [Balances](../pallet_balances/index.html): Used to manage values at stake.
+//! - GenericAsset used to manage values at stake.
+//! - [Rewards](../crml-rewards/index.html): Used to calculate and payout rewards.
 //! - [Session](../pallet_session/index.html): Used to manage sessions. Also, a list of new validators
 //! is stored in the Session module's `Validators` at the end of each era.
 
@@ -634,7 +618,7 @@ decl_storage! {
 		/// Where the reward payment should be made. Keyed by stash.
 		pub Payee get(fn payee): map hasher(twox_64_concat) T::AccountId => RewardDestination<T::AccountId>;
 
-		/// The map from validator candidate stash keys to the preferences of that validator.
+		/// The map from validator candidate stash keys to their payment preferences.
 		pub Validators get(fn validators):
 			map hasher(twox_64_concat) T::AccountId => ValidatorPrefs;
 

@@ -15,10 +15,9 @@
 
 //! CENNZnet Staking Rewards
 //! This module handles the economic model for payouts of staking rewards for validators and their nominators.
-//! It also provides a simple treasury account suited for CENNZnet (vs. the more complex upstream treasury module).
+//! It also provides a simple treasury account suited for CENNZnet.
 //!
-//! The staking module should call into this module to trigger reward payouts most likely at the end of an era.
-//!
+//! The staking module should call into this module to trigger reward payouts at the end of an era.
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use cennznet_primitives::{traits::ValidatorRewardPayment, types::Exposure};
