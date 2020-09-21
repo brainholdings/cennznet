@@ -108,11 +108,11 @@ pub fn native_version() -> NativeVersion {
 
 parameter_types! {
 	pub const BlockHashCount: BlockNumber = 250;
+	// is now: `2_000_000_000_000` on latest substrate
 	pub const MaximumBlockWeight: Weight = 1_000_000_000;
 	pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
 	pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
 	pub const Version: RuntimeVersion = VERSION;
-	pub const ScaleDownFactor: Balance = 1_000_000_000_000;
 }
 
 pub type CennznetDoughnut = prml_doughnut::PlugDoughnut<Runtime>;
@@ -282,38 +282,27 @@ impl pallet_session::historical::Trait for Runtime {
 	type FullIdentificationOf = crml_staking::ExposureOf<Runtime>;
 }
 
-crml_staking_reward_curve::build! {
-	const REWARD_CURVE: PiecewiseLinear<'static> = curve!(
-		min_inflation: 0_025_000,
-		max_inflation: 0_100_000,
-		ideal_stake: 0_500_000,
-		falloff: 0_050_000,
-		max_piece_count: 40,
-		test_precision: 0_005_000,
-	);
-}
-
 parameter_types! {
 	pub const SessionsPerEra: sp_staking::SessionIndex = 6;
 	pub const BondingDuration: crml_staking::EraIndex = 24 * 28;
 	pub const SlashDeferDuration: crml_staking::EraIndex = 24 * 7; // 1/4 the bonding duration.
-	pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
 }
 
 impl crml_staking::Trait for Runtime {
 	type Currency = StakingAssetCurrency<Self>;
-	type RewardCurrency = SpendingAssetCurrency<Self>;
 	type Time = Timestamp;
 	type CurrencyToVote = CurrencyToVoteHandler;
-	type RewardRemainder = Treasury;
 	type Event = Event;
 	type Slash = Treasury; // send the slashed funds to the treasury.
-	type Reward = (); // rewards are minted from the void
 	type SessionsPerEra = SessionsPerEra;
 	type BondingDuration = BondingDuration;
 	type SlashDeferDuration = SlashDeferDuration;
 	type SessionInterface = Self;
-	type RewardCurve = RewardCurve;
+	type Rewarder = Rewards;
+}
+
+impl crml_rewards::Trait for Runtime {
+	type CurrencyToReward = SpendingAssetCurrency<Self>;
 }
 
 parameter_types! {
@@ -579,6 +568,7 @@ construct_runtime!(
 		SyloVault: sylo_vault::{Module, Call, Storage},
 		SyloPayment: sylo_payment::{Module, Call, Storage},
 		CennzxSpot: crml_cennzx_spot::{Module, Call, Storage, Config<T>, Event<T>},
+		Rewards:: crml_rewards::{Module, Call, Storage, Config<T>, Event<T>},
 	}
 );
 

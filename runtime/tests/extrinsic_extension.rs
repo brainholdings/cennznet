@@ -737,11 +737,6 @@ fn generic_asset_transfer_fails_with_bad_doughnut_permissions() {
 
 	let initial_balance = 100 * DOLLARS;
 	let transfer_amount = 50 * MICROS;
-	let runtime_call = Call::GenericAsset(pallet_generic_asset::Call::transfer(
-		CENNZ_ASSET_ID,
-		charlie(),
-		transfer_amount,
-	));
 
 	ExtBuilder::default()
 		.initial_balance(initial_balance)

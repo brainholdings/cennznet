@@ -15,7 +15,10 @@
 
 //! Common traits used by CENNZnet node.
 
+use crate::types::Exposure;
+use codec::HasCompact;
 use frame_support::dispatch::DispatchError;
+use sp_runtime::Perbill;
 
 /// A trait which enables buying some fee asset using another asset.
 /// It is targeted at the CENNZX Spot exchange and the CennznetExtrinsic format.
@@ -44,4 +47,17 @@ pub trait IsGasMeteredCall {
 	type Call;
 	/// Return whether this call requires a gas meter or not
 	fn is_gas_metered(call: &Self::Call) -> bool;
+}
+
+/// Something which can perform reward payment to staked validators
+pub trait ValidatorRewardPayment {
+	/// The system account ID type
+	type AccountId;
+	/// The system balance type
+	type Balance: HasCompact;
+	/// Make a reward payout to validators and nominators at a given era.
+	/// `validator_commission_stake_map` is a mapping of a validator payment account, validator commission %, and a staking exposure map.
+	fn make_reward_payout(
+		validator_commission_stake_map: &[(Self::AccountId, Perbill, Exposure<Self::AccountId, Self::Balance>)],
+	);
 }
